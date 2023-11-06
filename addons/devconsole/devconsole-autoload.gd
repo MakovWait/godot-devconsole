@@ -7,6 +7,7 @@ var enabled = true
 ################################
 var key_activate: Key = KEY_QUOTELEFT
 var key_deactivate: Key = KEY_ESCAPE
+var default_font_size = 16
 var height_ratio = 0.75
 var mouse_select = true
 var mouse_select_group_only = true # only use mouse select for node2ds in the `dev_console_mouse_select` group.
@@ -33,6 +34,10 @@ var selected_viewport: Viewport = null:
 			console_scene.selected_viewport = s
 
 var mouse_press_position = Vector2()
+
+func _init():
+	var theme = load("res://addons/devconsole/scene/theme.tres") as Theme
+	theme.default_font_size = default_font_size
 
 func _ready():
 	process_mode = Node.PROCESS_MODE_ALWAYS
