@@ -20,7 +20,8 @@ var history_limit = 1024
 
 var commands = {}
 var canvas_layer: CanvasLayer
-var console_scene: DevConsolePanel
+#var console_scene: DevConsolePanel
+var console_scene
 var selected: Node = null:
 	set(s):
 		selected = s
@@ -89,7 +90,25 @@ func disable():
 	enabled = false
 	console_scene.deactivate()
 
-func register_command(function: Callable, name:String="", description: String="", args: Array[String]=[], category="uncategorized"):
+func remove_command(name):
+	commands.erase(name)
+
+func error(text):
+	console_scene.error(text)
+
+func set_as_raw(command_name):
+	commands[command_name].raw = true
+
+func set_suggest_handler(command_name, handler: Callable):
+	commands[command_name].suggest = handler
+
+func register_command_cs(function: Callable, name:String="", description: String="", args=[], category="uncategorized"):
+	var typed_args: Array[String] = []
+	for a in args:
+		typed_args.append(a)
+	register_command(function, name, description, typed_args, category)
+
+func register_command(function: Callable, name:String="", description: String="", args: Array[String] = [], category="uncategorized"):
 	for command in commands:
 		if commands[command].function == function and command != name:
 			commands[command].aliases.append(name)
@@ -122,6 +141,21 @@ func register_command_from_dict(dict: Dictionary):
 	}
 	full.merge(dict, true)
 	register_command(dict.function, dict.name, dict.description, dict.args, dict.category)
+
+func submit_raw_command(text):
+	_on_command_submitted(text)
+
+func get_history():
+	return console_scene.history
+
+func set_shelf_value(alias: String, value):
+	console_scene.set_shelf_value(alias, value)
+
+func get_shelf_value():
+	return console_scene.get_shelf_value()
+
+func clear_shelf():
+	console_scene.clear_shelf()
 
 func write_line(line: String, color=console_scene.color_output):
 	console_scene.write_line(line, color)
@@ -161,7 +195,10 @@ func _on_command_submitted(text: String):
 					error += "<%s> " % arg
 			console_scene.error(error)
 			return
-		callable.callv(args.slice(0, info.argc))
+		if "raw" in info and info.raw:
+			callable.call(" ".join(args.slice(0, info.argc)))
+		else:
+			callable.callv(args.slice(0, info.argc))
 		return
 
 	else:

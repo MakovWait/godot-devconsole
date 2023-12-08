@@ -18,10 +18,13 @@ const LINE_LABEL_SCENE = preload("res://addons/devconsole/scene/LineLabel.tscn")
 @onready var selected_label = %SelectedLabel
 @onready var label_box = %LabelBox
 @onready var suggestion = %Suggestion
+@onready var shelf = %ShelfLabel
 
 var history: Array[String] = [""]
 var history_index = 0
+var shelf_value = null
 var pause_state = false
+var focus_state = null
 var selecting_text = false
 var mouse_over_text = false
 
@@ -57,6 +60,7 @@ func _process(delta):
 	queue_redraw()
 
 func activate():
+	focus_state = get_viewport().gui_get_focus_owner()
 	pause_state = get_tree().paused
 	if DevConsole.pause:
 		get_tree().paused = true
@@ -65,12 +69,26 @@ func activate():
 	line_edit.clear.call_deferred()
 
 func deactivate():
-	get_tree().paused = pause_state
+	if DevConsole.pause:
+		get_tree().paused = pause_state
+	if focus_state:
+		focus_state.grab_focus()
 	hide()
 
 func clear():
 	for label in label_box.get_children():
 		label.queue_free()
+
+func get_shelf_value():
+	return shelf_value
+
+func set_shelf_value(alias: String, value):
+	shelf.text = alias
+	shelf_value = value
+
+func clear_shelf():
+	shelf_value = null
+	shelf.clear()
 
 func write_line(line: String, color=color_output):
 	if color is Color:
@@ -171,6 +189,32 @@ func _on_line_edit_text_changed(new_text):
 	if !(line_edit.text in current_suggestions):
 		cycling_suggestions = false
 	suggest()
+	command_on_text_changed(new_text)
+
+func command_on_text_changed(new_text):
+	var words = new_text.strip_edges().split(" ")
+	var command_name = words[0]
+
+	var found_command = null
+	for command in DevConsole.commands:
+		if command == command_name:
+			found_command = DevConsole.commands[command]
+			break
+		for alias in DevConsole.commands[command].aliases:
+			if alias == command_name:
+				found_command = DevConsole.commands[command]
+				break
+	
+	if found_command != null:
+		if "suggest" in found_command:
+			var command_suggest = found_command.suggest
+			if command_suggest != null:
+				var res = found_command.suggest.call(
+					new_text.erase(new_text.find(command_name), len(command_name)).strip_edges()
+				)
+				if res != null:
+					current_suggestions.append(res)
+					suggestion.text = res
 
 func _on_rich_text_label_focus_entered():
 	line_edit.grab_focus()
